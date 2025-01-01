@@ -15,10 +15,21 @@ pipeline {
  
         stage('Build') {
             steps {
-                // Set the PATH and install dependencies using pip
+                // Verify Python and pip paths and install dependencies
                 bat '''
+                echo Validating Python and pip installations...
                 set PATH=%PYTHON_PATH%;%PATH%
-                pip install -r requirements.txt
+                python --version || echo "Python not found. Check PYTHON_PATH."
+                pip --version || echo "Pip not found. Check PYTHON_PATH."
+                
+                echo Installing dependencies from requirements.txt...
+                if exist requirements.txt (
+                    pip install --upgrade pip
+                    pip install -r requirements.txt || exit /b 1
+                ) else (
+                    echo "requirements.txt not found. Exiting build stage."
+                    exit /b 1
+                )
                 '''
             }
         }
@@ -28,11 +39,10 @@ pipeline {
                 SONAR_TOKEN = credentials('Sonarqube-token') // Accessing the SonarQube token stored in Jenkins credentials
             }
             steps {
-                // Ensure that sonar-scanner is in the PATH
+                // Ensure SonarQube Scanner is available
                 bat '''
                 set PATH=%SONAR_SCANNER_PATH%;%PATH%
-                where sonar-scanner || echo "SonarQube scanner not found. Please install it."
-                set PATH=%PYTHON_PATH%;%PATH%
+                where sonar-scanner || echo "SonarQube scanner not found. Please check SONAR_SCANNER_PATH."
                 sonar-scanner -Dsonar.projectKey=test123 ^
                     -Dsonar.sources=. ^
                     -Dsonar.host.url=http://localhost:9000 ^
